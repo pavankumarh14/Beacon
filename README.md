@@ -55,7 +55,13 @@ saved plan, not a live reservation or other external action.
 2. Beacon detects the planning domain and collects its missing details.
 3. It shows three cards marked as **demo options**; it never claims live availability.
 4. Choose an option by voice or button, then say **yes** to save the plan.
-5. Beacon stores a final receipt. The final receipt is a plan, not an external action.
+5. Beacon displays a final receipt with the chosen approach, plan details, and next steps.
+6. Download the receipt as a PDF to share or keep as the record of the decision.
+
+For dining goals, Beacon also attempts a live, no-key OpenStreetMap place search
+after it has the area and preferences. Live cards identify OpenStreetMap as their
+source and link to the place page; if the public service is unavailable, Beacon
+uses clearly marked demo cards instead.
 
 ---
 

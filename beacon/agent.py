@@ -75,6 +75,11 @@ STARTER / PLACEHOLDER CODE
 
 import os
 import re
+import json
+import threading
+import time
+import urllib.parse
+import urllib.request
 
 from .llm import LLMClient
 from .models import SessionStatus, TurnKind
@@ -226,6 +231,9 @@ _WORKFLOW_FIELDS = {
         ("budget", "Budget", "Is there a budget or resource limit?"),
     ],
 }
+_PLACE_CACHE = {}
+_PLACE_SEARCH_LOCK = threading.Lock()
+_LAST_PLACE_SEARCH = 0.0
 
 
 def _new_workflow(goal: str) -> dict:
@@ -359,6 +367,10 @@ def _start_workflow(workflow: dict) -> str:
 
 def _workflow_options(workflow: dict):
     details, domain = workflow["details"], workflow["domain"]
+    if domain == "dining":
+        live = _live_dining_options(details)
+        if live:
+            return live
     templates = {
         "dining": [("The Cozy Table", "A relaxed {cuisine} plan near {location}."), ("Garden Plate", "A group-friendly {cuisine} choice in {location}."), ("Evening Social", "A lively {cuisine} outing suited to {dietary_needs}.")],
         "travel": [("Balanced weekend route", "A practical {style} itinerary from {origin} to {destination}."), ("Comfort-first escape", "A slower {dates} trip focused on {style}."), ("Value explorer", "A budget-aware route for {travellers} travellers to {destination}.")],
@@ -370,8 +382,67 @@ def _workflow_options(workflow: dict):
     for field in workflow["fields"]: safe.setdefault(field["key"], "your preferences")
     return [{"id": index + 1, "name": name, "summary": summary.format(**safe),
              "price": safe.get("budget", "No budget set"),
-             "note": "Demo option — details and availability are not verified."}
+             "note": "Demo option — details and availability are not verified.", "source": "Beacon demo"}
             for index, (name, summary) in enumerate(templates[domain])]
+
+
+def _live_dining_options(details: dict):
+    """Return real, user-triggered local-place results without an API key.
+
+    Nominatim's public service is deliberately rate-limited and cached here. It
+    is suitable for a small interactive prototype, not an unbounded production
+    place-search service.
+    """
+    cuisine = details.get("cuisine", "restaurant")
+    location = details.get("location", "")
+    dietary = details.get("dietary_needs", "")
+    query_bits = [cuisine, "restaurant", "in", location]
+    if dietary and dietary.lower() != "no restrictions":
+        query_bits.insert(0, dietary)
+    query = " ".join(part for part in query_bits if part).strip()
+    if not query:
+        return []
+    now = time.monotonic()
+    cached = _PLACE_CACHE.get(query.lower())
+    if cached and now - cached[0] < 900:
+        return cached[1]
+    global _LAST_PLACE_SEARCH
+    try:
+        with _PLACE_SEARCH_LOCK:
+            delay = 1.0 - (time.monotonic() - _LAST_PLACE_SEARCH)
+            if delay > 0:
+                time.sleep(delay)
+            params = urllib.parse.urlencode({"q": query, "format": "jsonv2", "limit": "3",
+                                              "addressdetails": "1"})
+            request = urllib.request.Request(
+                os.environ.get("BEACON_PLACE_SEARCH_URL", "https://nominatim.openstreetmap.org/search")
+                + "?" + params,
+                headers={"User-Agent": "Beacon Voice Planner/1.0 (interactive user search)",
+                         "Accept-Language": "en"},
+            )
+            with urllib.request.urlopen(request, timeout=8) as response:
+                results = json.loads(response.read().decode("utf-8"))
+            _LAST_PLACE_SEARCH = time.monotonic()
+        options = []
+        for item in results:
+            display = item.get("display_name", "")
+            name, _, address = display.partition(",")
+            osm_type, osm_id = item.get("osm_type", "node"), item.get("osm_id", "")
+            options.append({
+                "id": len(options) + 1,
+                "name": name or "Local restaurant",
+                "summary": (address.strip() or "OpenStreetMap place result") + ".",
+                "price": "Check price directly",
+                "note": "Live place result - verify opening hours and availability before visiting.",
+                "source": "OpenStreetMap contributors",
+                "map_url": "https://www.openstreetmap.org/%s/%s" % (osm_type, osm_id),
+            })
+        if options:
+            _PLACE_CACHE[query.lower()] = (time.monotonic(), options)
+        return options
+    except Exception as exc:  # A public data-source outage must never block planning.
+        print("[beacon] live place search unavailable: %s" % exc)
+        return []
 
 
 def _workflow_receipt(workflow: dict, option: dict):
