@@ -110,13 +110,14 @@ def run_agent(session_id: str) -> None:
         s.status = SessionStatus.PLANNING.value
         store.save(s)
 
-        # New conversations are deliberately general: answer the user's actual
-        # question rather than forcing every request into a planning template.
-        s.site_name = "general_conversation"
-        s.workflow = {}
-        s.plan = Plan(intent=s.goal, steps=[], confirm_question="")
-        s.say(TurnKind.NARRATION.value,
-              compose_reply(_llm_or_none(), _history(s), s.plan))
+        # Beacon is deliberately a goal-completion concierge, not a general
+        # chat window.  First form a small LLM-guided plan, then collect only
+        # the domain details needed to present a useful set of options.
+        s.site_name = "voice_to_plan"
+        s.plan = make_plan(_llm_or_none(), s.goal)
+        s.workflow = _new_workflow(s.goal)
+        _extract_workflow(s.workflow, s.goal, initial=True)
+        s.say(TurnKind.NARRATION.value, _start_workflow(s.workflow))
         s.status = SessionStatus.CONVERSING.value
         store.save(s)
     except Exception as exc:  # noqa: BLE001
@@ -147,9 +148,13 @@ def handle_reply(session_id: str, text: str) -> None:
             s.say(TurnKind.OUTCOME.value, closing_line(history))
             s.status = SessionStatus.DONE.value
         else:
-            s.say(TurnKind.NARRATION.value,
-                  compose_reply(_llm_or_none(), history, s.plan))
-            s.status = SessionStatus.CONVERSING.value
+            # The workflow owns the progression: missing detail -> three
+            # options -> explicit confirmation -> persisted plan receipt.
+            # This is what makes Beacon different from a one-shot chatbot.
+            if not s.workflow:
+                s.workflow = _new_workflow(s.goal)
+                _extract_workflow(s.workflow, s.goal, initial=True)
+            _handle_workflow_reply(s, text)
         store.save(s)
     except Exception as exc:  # noqa: BLE001
         _fail(store, session_id, exc)
@@ -249,8 +254,6 @@ def _new_workflow(goal: str) -> dict:
 
 def _detect_domain(goal: str) -> str:
     text = (goal or "").lower()
-    if re.search(r"\b(explain|what(?:\s+is|\s+are)?|who(?:\s+is|\s+was)?|why|how(?:\s+does|\s+do)?|tell me about|learn about|define|meaning of)\b", text):
-        return "knowledge"
     if any(word in text for word in ("dinner", "lunch", "restaurant", "cafe", "food", "brunch")):
         return "dining"
     if any(word in text for word in ("trip", "travel", "flight", "hotel", "weekend", "vacation")):

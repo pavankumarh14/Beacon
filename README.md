@@ -1,13 +1,10 @@
-# Beacon — Voice AI Assistant
+# Beacon — Voice-to-Plan Concierge
 
-> **Theme: Voice agents.** Beacon is a voice-first AI assistant that answers
-> spoken or typed questions naturally and keeps the current conversation in
-> context. It can explain, write, brainstorm, or help plan without forcing every
-> request into a fixed workflow.
-
-Beacon gives a direct answer when it can, and asks one focused follow-up only
-when it genuinely needs more information. The user can end at any time with
-*"bye"* or *"stop"*. The full transcript persists for audit.
+Beacon is a voice-first conversational concierge for multi-step goals. It keeps
+the goal and the details gathered so far in context, asks only the information
+needed to make a useful plan, presents choices, and saves the user's confirmed
+decision. The user can end at any time with *"bye"* or *"stop"*; the full
+transcript persists for audit.
 
 Beacon is a single Python web service. Its browser dashboard uses the Web Speech
 API for speech input and output, while the backend persists the structured plan,
@@ -18,7 +15,7 @@ selection, confirmation, and final receipt in SQLite.
 ## Table of contents
 - [Quick start](#quick-start)
 - [Architecture](#architecture)
-- [Outing workflow](#outing-workflow)
+- [Voice-to-plan workflow](#voice-to-plan-workflow)
 - [Using a different LLM](#using-a-different-llm)
 
 ---
@@ -49,9 +46,10 @@ Answer the short domain-specific questions, choose one of the three option cards
 and say **“yes”** to save the final plan. The receipt clearly states that it is a
 saved plan, not a live reservation or other external action.
 
-For direct questions such as **“Explain quantum computing,” “What is photosynthesis?”**
-or **“Who was Ada Lovelace?”**, Beacon uses Wikipedia's public API to show a
-live source-backed summary and a source link instead of entering the planning flow.
+Beacon is intentionally not a general-answer chatbot. For a broad request such
+as “Explain quantum computing,” it will clarify the desired outcome, timeframe,
+constraints, and preferences, then create a practical learning plan. This keeps
+the experience faithful to Beacon’s goal-tracking design.
 
 ## Voice-to-plan workflow
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Beacon — Voice-to-Plan Outing Concierge</title>
+<title>Beacon — Voice-to-Plan Concierge</title>
 <style>
   :root{ --bg:#0e1320; --panel:#171e2e; --line:#2a3450; --txt:#eef3fb;
          --muted:#94a3bd; --accent:#6aa6ff; --you:#1f3a63; --beacon:#16324a;
@@ -55,19 +55,19 @@
 <body>
 <header>
   <h1>Beacon</h1>
-  <span class="tag">Voice AI Assistant</span>
+  <span class="tag">Voice-to-Plan Concierge</span>
   <span id="live" class="tag" style="margin-left:auto"></span>
 </header>
 
 <div class="wrap">
-  <div id="status">Ask Beacon anything by voice or text.</div>
+  <div id="status">Tell Beacon what you want to plan.</div>
   <div id="transcript"></div>
   <div id="planPanel" class="plan-panel">
-    <div class="plan-title">Ask anything</div>
-    <div class="facts"><span class="fact">Beacon remembers the current conversation</span></div>
-    <p class="starter">Try <code>Explain quantum computing</code>, <code>Help me plan a trip</code>, or <code>Write a polite email</code>.</p>
+    <div class="plan-title">Your plan</div>
+    <div class="facts"><span class="fact">Beacon will collect the details that matter</span></div>
+    <p class="starter">Try <code>Plan dinner for four tonight</code>, <code>Plan a weekend trip</code>, <code>Choose a birthday gift</code>, or <code>Prepare for a Python interview</code>.</p>
   </div>
-  <div class="hint" id="hint">Beacon listens, answers, and remembers the current conversation.
+  <div class="hint" id="hint">Beacon asks only for the details needed, presents options, and saves a confirmed plan.
     Voice works in Chrome/Edge; you can also type below.</div>
 </div>
 
@@ -271,11 +271,11 @@ function renderPlan(o,receipt={}){
   const details=o.details||o;
   const facts=fields.filter(([key])=>details[key]).map(([key,label])=>`<span class="fact">${escapeHtml(label)}: ${escapeHtml(String(details[key]))}</span>`).join('');
   const hasPlan=Boolean(o.domain);
-  const title=isResearch ? 'Live research result' : (hasPlan ? `Your ${escapeHtml(o.domain==='general'?'personal':o.domain)} plan` : 'Ask anything');
+  const title=isResearch ? 'Live research result' : (hasPlan ? `Your ${escapeHtml(o.domain==='general'?'personal':o.domain)} plan` : 'Your plan');
   let html='<div class="plan-title">'+title+'</div><div class="progress">';
   steps.forEach((label,index)=>{ const state=index<stageIndex?'done':index===stageIndex?'active':''; html+=`<span class="step ${state}">${label}</span>`; });
   html+='</div><div class="facts">'+(facts||'<span class="fact">Beacon remembers the current conversation</span>')+'</div>';
-  if(!hasPlan) html+='<p class="starter">Try <code>Explain quantum computing</code>, <code>Help me plan a trip</code>, or <code>Write a polite email</code>.</p>';
+  if(!hasPlan) html+='<p class="starter">Try <code>Plan dinner for four tonight</code>, <code>Plan a weekend trip</code>, <code>Choose a birthday gift</code>, or <code>Prepare for a Python interview</code>.</p>';
   if((stage==='options'||stage==='confirm') && Array.isArray(o.options)){
     html+='<div class="option-grid">';
     o.options.forEach(option=>{
