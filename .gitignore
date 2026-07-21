@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+beacon.db
+*.db
+*.db-wal
+*.db-shm
+.env

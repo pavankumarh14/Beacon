@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: beacon-voice-concierge
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /
+    envVars:
+      # SQLite creates this file automatically. The attached disk preserves it
+      # across deploys and restarts.
+      - key: BEACON_DB
+        value: /var/data/beacon.db
+      # Configure the provider, model, and (for custom compatible providers)
+      # base URL in the Render dashboard. See README for examples.
+      - key: BEACON_LLM_API_KEY
+        sync: false
+    disk:
+      name: beacon-data
+      mountPath: /var/data
+      sizeGB: 1

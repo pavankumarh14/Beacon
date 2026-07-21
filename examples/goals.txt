@@ -1,0 +1,12 @@
+Example things you can say to Beacon (speak them in the web UI, or POST as a goal):
+
+  book a restaurant for four people tonight
+  help me plan a weekend trip to the mountains
+  I need a birthday gift idea for my dad
+  what should I cook for dinner with chicken and rice
+  help me write a quick thank-you message
+  talk me through choosing a new pair of headphones
+
+Beacon is a conversational concierge: it greets you, asks the one or two most
+useful questions, and gives concrete suggestions and next steps — turn by turn.
+Say "bye", "that's all", or "stop" when you're done and Beacon will close out.
