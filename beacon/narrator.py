@@ -92,7 +92,10 @@ def compose_reply(llm: LLMClient, history: List[Dict[str, str]],
     try:
         reply = (llm.chat(messages, temperature=0.5, max_tokens=180) or "").strip()
         return _spoken_text(reply) or _FALLBACK
-    except Exception:
+    except Exception as exc:
+        # Keep speech graceful, but leave the actionable provider error in the
+        # host logs (for example: invalid key, unavailable model, bad base URL).
+        print("[beacon] narrator LLM fallback: %s" % exc)
         return _FALLBACK
 
 

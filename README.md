@@ -83,6 +83,10 @@ that supports them. If you intentionally deploy without a disk, set
 `BEACON_DB=beacon.db`; the app still works, but its conversation history is
 discarded when the instance is replaced.
 
+Beacon retains the three most recently updated sessions by default
+(`BEACON_MAX_HISTORY=3`). Each retained session includes its full transcript.
+When a fourth session is saved, the oldest session and transcript are removed.
+
 ### Choose any supported model provider
 
 Set `BEACON_LLM_PROVIDER`, `BEACON_LLM_MODEL`, and `BEACON_LLM_API_KEY` in
@@ -105,6 +109,22 @@ Gemini model ID. An unsupported proprietary API needs a small adapter in
 `beacon/llm.py`; it cannot be used only by supplying a key. Ollama is supported
 for local development but is not appropriate for a standard Render web service
 unless you run an Ollama server separately.
+
+### If Beacon keeps saying it did not catch you
+
+That response is the safe fallback when the model provider rejects or cannot
+complete a request; it is not normally a microphone problem. Open your Render
+service's **Logs** after trying a conversation. Beacon now logs the precise
+provider error there.
+
+For Groq, set only these model variables and remove `BEACON_LLM_BASE_URL` if it
+was previously added for Gemini or another provider:
+
+```text
+BEACON_LLM_PROVIDER=groq
+BEACON_LLM_MODEL=llama-3.3-70b-versatile
+BEACON_LLM_API_KEY=your_groq_key
+```
 
 ---
 

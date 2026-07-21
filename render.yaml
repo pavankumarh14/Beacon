@@ -10,6 +10,8 @@ services:
       # across deploys and restarts.
       - key: BEACON_DB
         value: /var/data/beacon.db
+      - key: BEACON_MAX_HISTORY
+        value: "3"
       # Configure the provider, model, and (for custom compatible providers)
       # base URL in the Render dashboard. See README for examples.
       - key: BEACON_LLM_API_KEY

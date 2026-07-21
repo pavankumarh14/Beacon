@@ -9,6 +9,7 @@ helper later. Stdlib `sqlite3` only.
 """
 
 import json
+import os
 import time
 from typing import List, Optional
 import sqlite3
@@ -19,6 +20,7 @@ from .models import Session
 class SessionStore:
     def __init__(self, path: str = "beacon.db"):
         self.path = path
+        self.max_sessions = _max_sessions()
         self._conn = sqlite3.connect(path, timeout=10, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA busy_timeout=8000")
@@ -42,6 +44,7 @@ class SessionStore:
             (s.session_id, s.status, s.goal, s.updated_at, json.dumps(s.to_dict())),
         )
         self._conn.commit()
+        self._prune_history()
 
     def get(self, session_id: str) -> Optional[Session]:
         row = self._conn.execute(
@@ -57,3 +60,26 @@ class SessionStore:
 
     def close(self) -> None:
         self._conn.close()
+
+    def _prune_history(self) -> None:
+        """Retain only the newest complete session records for local privacy."""
+        self._conn.execute(
+            """
+            DELETE FROM sessions
+            WHERE session_id NOT IN (
+                SELECT session_id FROM sessions
+                ORDER BY updated_at DESC
+                LIMIT ?
+            )
+            """,
+            (self.max_sessions,),
+        )
+        self._conn.commit()
+
+
+def _max_sessions() -> int:
+    """Use a small, safe default; allow deployments to opt into another limit."""
+    try:
+        return max(1, int(os.environ.get("BEACON_MAX_HISTORY", "3")))
+    except ValueError:
+        return 3

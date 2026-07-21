@@ -110,7 +110,10 @@ def make_plan(llm: LLMClient, goal: str) -> Plan:
         steps = [_clean_text(step, "") for step in steps]
         steps = [step for step in steps if step][:3]
         return Plan(intent=intent, steps=steps or fallback.steps, confirm_question=question)
-    except Exception:  # The conversation can still start without an LLM.
+    except Exception as exc:  # The conversation can still start without an LLM.
+        # This appears in Render logs and makes a bad key/model/base URL
+        # diagnosable without exposing provider details to the voice UI.
+        print("[beacon] planner LLM fallback: %s" % exc)
         return fallback
 
 
