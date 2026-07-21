@@ -48,14 +48,14 @@
   .option{border:1px solid var(--line);border-radius:12px;padding:13px;background:#111a2a}.option.selected{border-color:#6aa6ff}
   .option h3{font-size:16px;margin:0 0 5px}.option p{font-size:14px;line-height:1.35;color:var(--muted);margin:5px 0}.option small{color:#8493ad}.option a{display:inline-block;font-size:13px;margin-top:5px}
   .option button{background:#2c6eaa;font-size:14px;padding:8px 11px;margin-top:7px}.option button:disabled{opacity:.55;cursor:default}
-  .receipt{margin-top:14px;border:1px solid #2c6e52;border-radius:12px;padding:14px;background:#102a22}.receipt h3{margin:0 0 6px;font-size:17px}.receipt p{margin:4px 0;font-size:14px}.receipt ul{margin:8px 0;padding-left:20px;font-size:14px}.download{display:inline-block;margin-top:8px;background:#2c6eaa;color:#fff;text-decoration:none;border-radius:9px;padding:8px 11px;font-size:14px;font-weight:700}
+  .receipt,.research{margin-top:14px;border:1px solid #2c6e52;border-radius:12px;padding:14px;background:#102a22}.receipt h3,.research h3{margin:0 0 6px;font-size:17px}.receipt p,.research p{margin:4px 0;font-size:14px}.receipt ul{margin:8px 0;padding-left:20px;font-size:14px}.download{display:inline-block;margin-top:8px;background:#2c6eaa;color:#fff;text-decoration:none;border-radius:9px;padding:8px 11px;font-size:14px;font-weight:700}
   a{color:var(--accent)}
 </style>
 </head>
 <body>
 <header>
   <h1>Beacon</h1>
-  <span class="tag">Voice-to-Plan Outing Concierge</span>
+  <span class="tag">Voice Research & Planner</span>
   <span id="live" class="tag" style="margin-left:auto"></span>
 </header>
 
@@ -265,13 +265,14 @@ function renderPlan(o,receipt={}){
   const stage=o.stage||'details';
   const stageChanged=stage!==planStage;
   planStage=stage;
-  const stageIndex={details:0,options:1,confirm:2,saved:3}[stage] ?? 0;
-  const steps=['Details','Options','Confirm','Plan saved'];
+  const isResearch=o.domain==='knowledge';
+  const stageIndex=isResearch?({details:0,research:1}[stage] ?? 0):({details:0,options:1,confirm:2,saved:3}[stage] ?? 0);
+  const steps=isResearch?['Question','Live source','Follow-up']:['Details','Options','Confirm','Plan saved'];
   const fields=Array.isArray(o.fields) ? o.fields.map(field=>[field.key,field.label]) : [['party_size','people'],['location','area'],['time','time'],['cuisine','cuisine'],['dietary_needs','diet'],['budget','budget']];
   const details=o.details||o;
   const facts=fields.filter(([key])=>details[key]).map(([key,label])=>`<span class="fact">${escapeHtml(label)}: ${escapeHtml(String(details[key]))}</span>`).join('');
   const hasPlan=Boolean(o.domain);
-  const title=hasPlan ? `Your ${escapeHtml(o.domain==='general'?'personal':o.domain)} plan` : 'Start a plan';
+  const title=isResearch ? 'Live research result' : (hasPlan ? `Your ${escapeHtml(o.domain==='general'?'personal':o.domain)} plan` : 'Start a plan');
   let html='<div class="plan-title">'+title+'</div><div class="progress">';
   steps.forEach((label,index)=>{ const state=index<stageIndex?'done':index===stageIndex?'active':''; html+=`<span class="step ${state}">${label}</span>`; });
   html+='</div><div class="facts">'+(facts||'<span class="fact">Share your first detail to begin</span>')+'</div>';
@@ -287,6 +288,11 @@ function renderPlan(o,receipt={}){
     });
     html+='</div>';
   }
+  if(stage==='research' && o.result){
+    const source=o.result.source_url?`<a class="download" href="${escapeHtml(o.result.source_url)}" target="_blank" rel="noopener">Read source</a>`:'';
+    const pdfUrl=sessionId?`<a class="download" href="/api/sessions/${encodeURIComponent(sessionId)}/receipt.pdf" download>Download briefing PDF</a>`:'';
+    html+=`<section class="research"><h3>${escapeHtml(o.result.title||'Live research result')}</h3><p>${escapeHtml(o.result.excerpt||'No source summary was available.')}</p><p><small>Source: ${escapeHtml(o.result.source||'Wikipedia')}</small></p>${source} ${pdfUrl}</section>`;
+  }
   if(stage==='saved' && (o.selected_option||receipt.selected_option)){
     const choice=receipt.selected_option||o.selected_option;
     const entries=Object.entries(receipt).filter(([key,value])=>!['selected_option','status'].includes(key)&&value).map(([key,value])=>`<p><strong>${escapeHtml(key.replaceAll('_',' '))}:</strong> ${escapeHtml(String(value))}</p>`).join('');
@@ -296,7 +302,7 @@ function renderPlan(o,receipt={}){
   panel.innerHTML=html;
   // The transcript normally scrolls to its newest message. When a user needs
   // to choose or confirm an option, bring the interactive plan panel into view.
-  if(stageChanged && (stage==='options'||stage==='confirm'||stage==='saved')){
+  if(stageChanged && (stage==='options'||stage==='confirm'||stage==='saved'||stage==='research')){
     setTimeout(()=>panel.scrollIntoView({behavior:'smooth',block:'start'}), 0);
   }
 }

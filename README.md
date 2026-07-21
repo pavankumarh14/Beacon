@@ -49,6 +49,10 @@ Answer the short domain-specific questions, choose one of the three option cards
 and say **“yes”** to save the final plan. The receipt clearly states that it is a
 saved plan, not a live reservation or other external action.
 
+For direct questions such as **“Explain quantum computing,” “What is photosynthesis?”**
+or **“Who was Ada Lovelace?”**, Beacon uses Wikipedia's public API to show a
+live source-backed summary and a source link instead of entering the planning flow.
+
 ## Voice-to-plan workflow
 
 1. Speak a goal, such as “Plan dinner for four tonight” or “Plan a weekend trip.”

@@ -115,6 +115,8 @@ def run_agent(session_id: str) -> None:
         s.workflow = _new_workflow(s.goal)
         _extract_workflow(s.workflow, s.goal, initial=True)
         s.say(TurnKind.NARRATION.value, _start_workflow(s.workflow))
+        if s.workflow.get("domain") == "knowledge" and s.workflow.get("result"):
+            s.outcome = _knowledge_receipt(s.workflow)
         s.status = SessionStatus.CONVERSING.value
         store.save(s)
     except Exception as exc:  # noqa: BLE001
@@ -193,6 +195,7 @@ def _llm_or_none():
 # for explicit confirmation, then save a plan receipt.
 # ---------------------------------------------------------------------------
 _WORKFLOW_FIELDS = {
+    "knowledge": [],
     "dining": [
         ("party_size", "People", "How many people are joining you?"),
         ("location", "Area", "Which neighbourhood or area should I look around?"),
@@ -234,6 +237,7 @@ _WORKFLOW_FIELDS = {
 _PLACE_CACHE = {}
 _PLACE_SEARCH_LOCK = threading.Lock()
 _LAST_PLACE_SEARCH = 0.0
+_KNOWLEDGE_CACHE = {}
 
 
 def _new_workflow(goal: str) -> dict:
@@ -246,6 +250,8 @@ def _new_workflow(goal: str) -> dict:
 
 def _detect_domain(goal: str) -> str:
     text = (goal or "").lower()
+    if re.search(r"\b(explain|what(?:\s+is|\s+are)?|who(?:\s+is|\s+was)?|why|how(?:\s+does|\s+do)?|tell me about|learn about|define|meaning of)\b", text):
+        return "knowledge"
     if any(word in text for word in ("dinner", "lunch", "restaurant", "cafe", "food", "brunch")):
         return "dining"
     if any(word in text for word in ("trip", "travel", "flight", "hotel", "weekend", "vacation")):
@@ -261,6 +267,9 @@ def _handle_workflow_reply(s, text: str) -> None:
     workflow = s.workflow
     stage = workflow.get("stage", "details")
     clean = (text or "").strip()
+    if workflow.get("domain") == "knowledge":
+        _handle_knowledge_reply(s, clean)
+        return
     if stage == "options":
         selected = _option_number(clean)
         if selected and 1 <= selected <= len(workflow["options"]):
@@ -317,7 +326,9 @@ def _extract_workflow(workflow: dict, text: str, initial: bool = False) -> None:
     lower = (text or "").lower()
     domain = workflow["domain"]
     awaiting = workflow.get("awaiting_field", "")
-    if initial and domain == "general":
+    if initial and domain == "knowledge":
+        details["topic"] = text.strip()
+    elif initial and domain == "general":
         details["goal"] = text.strip()
     number = re.search(r"\b(?:for|party of)\s+(\d+|%s)\b" % "|".join(_NUMBER_WORDS), lower)
     if number:
@@ -355,6 +366,8 @@ def _workflow_missing(workflow: dict):
 
 
 def _start_workflow(workflow: dict) -> str:
+    if workflow.get("domain") == "knowledge":
+        return _start_knowledge(workflow)
     missing = _workflow_missing(workflow)
     if missing:
         workflow["awaiting_field"] = missing["key"]
@@ -363,6 +376,77 @@ def _start_workflow(workflow: dict) -> str:
     workflow["stage"] = "options"
     workflow["options"] = _workflow_options(workflow)
     return "I have three demo options based on your plan. Review the cards and say or tap the option you prefer."
+
+
+def _start_knowledge(workflow: dict) -> str:
+    result = _lookup_wikipedia(workflow["details"].get("topic", ""))
+    workflow["stage"] = "research"
+    workflow["result"] = result
+    if not result.get("source_url"):
+        return "I could not retrieve a live source for that topic right now. Please try a more specific question."
+    return result["excerpt"]
+
+
+def _handle_knowledge_reply(s, text: str) -> None:
+    workflow = s.workflow
+    workflow["details"]["topic"] = text
+    result = _lookup_wikipedia(text)
+    workflow["stage"] = "research"
+    workflow["result"] = result
+    if result.get("source_url"):
+        s.outcome = _knowledge_receipt(workflow)
+        s.say(TurnKind.NARRATION.value, result["excerpt"])
+    else:
+        s.say(TurnKind.NARRATION.value,
+              "I could not retrieve a live source for that topic right now. Try a more specific question.")
+    s.status = SessionStatus.CONVERSING.value
+
+
+def _lookup_wikipedia(topic: str) -> dict:
+    """Fetch a concise, attributable live answer from Wikipedia's public API."""
+    clean_topic = " ".join((topic or "").split())
+    if not clean_topic:
+        return {}
+    cached = _KNOWLEDGE_CACHE.get(clean_topic.lower())
+    if cached and time.monotonic() - cached[0] < 900:
+        return cached[1]
+    try:
+        base = "https://en.wikipedia.org/w/api.php"
+        headers = {"User-Agent": "Beacon Voice Planner/1.0 (interactive research)",
+                   "Accept-Language": "en"}
+        search_params = urllib.parse.urlencode({"action": "query", "list": "search",
+                                                 "srsearch": clean_topic, "srlimit": "1", "format": "json"})
+        with urllib.request.urlopen(urllib.request.Request(base + "?" + search_params, headers=headers), timeout=8) as response:
+            matches = json.loads(response.read().decode("utf-8"))
+        results = matches.get("query", {}).get("search", [])
+        if not results:
+            return {}
+        title = results[0]["title"]
+        extract_params = urllib.parse.urlencode({"action": "query", "prop": "extracts|info",
+                                                  "inprop": "url", "exintro": "1", "explaintext": "1",
+                                                  "exsentences": "3", "titles": title, "format": "json"})
+        with urllib.request.urlopen(urllib.request.Request(base + "?" + extract_params, headers=headers), timeout=8) as response:
+            page_data = json.loads(response.read().decode("utf-8"))
+        page = next(iter(page_data.get("query", {}).get("pages", {}).values()), {})
+        extract = " ".join(page.get("extract", "").split())
+        if not extract:
+            return {}
+        result = {"title": page.get("title", title), "excerpt": extract[:900],
+                  "source_url": page.get("fullurl", "https://en.wikipedia.org/wiki/" + urllib.parse.quote(title.replace(" ", "_"))),
+                  "source": "Wikipedia"}
+        _KNOWLEDGE_CACHE[clean_topic.lower()] = (time.monotonic(), result)
+        return result
+    except Exception as exc:
+        print("[beacon] live knowledge lookup unavailable: %s" % exc)
+        return {}
+
+
+def _knowledge_receipt(workflow: dict) -> dict:
+    result = workflow.get("result", {})
+    return {"selected_option": "Research briefing: " + result.get("title", "Live source"),
+            "topic": workflow["details"].get("topic", ""),
+            "source": result.get("source", "Wikipedia"),
+            "source_url": result.get("source_url", "")}
 
 
 def _workflow_options(workflow: dict):
