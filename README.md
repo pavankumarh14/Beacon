@@ -1,13 +1,13 @@
-# Beacon — Voice-to-Plan Outing Concierge
+# Beacon — Voice AI Assistant
 
-> **Theme: Voice agents.** Beacon turns a spoken goal into a clear, confirmed,
-> and saved plan. It adapts its questions to dinner, travel, gifts, study, or an
-> open-ended personal goal, then produces a final plan receipt.
+> **Theme: Voice agents.** Beacon is a voice-first AI assistant that answers
+> spoken or typed questions naturally and keeps the current conversation in
+> context. It can explain, write, brainstorm, or help plan without forcing every
+> request into a fixed workflow.
 
-Beacon asks only for details suited to the goal: for example, party size and
-cuisine for dinner, or destination and travel style for a trip. The user chooses
-an option, explicitly confirms it, and can end at any time with *"bye"* or
-*"stop"*. The final plan and transcript persist for audit.
+Beacon gives a direct answer when it can, and asks one focused follow-up only
+when it genuinely needs more information. The user can end at any time with
+*"bye"* or *"stop"*. The full transcript persists for audit.
 
 Beacon is a single Python web service. Its browser dashboard uses the Web Speech
 API for speech input and output, while the backend persists the structured plan,

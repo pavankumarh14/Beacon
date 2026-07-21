@@ -82,8 +82,8 @@ import urllib.parse
 import urllib.request
 
 from .llm import LLMClient
-from .models import SessionStatus, TurnKind
-from .narrator import closing_line
+from .models import Plan, SessionStatus, TurnKind
+from .narrator import closing_line, compose_reply
 from .navigator import next_move
 from .planner import make_plan
 from .store import SessionStore
@@ -110,13 +110,13 @@ def run_agent(session_id: str) -> None:
         s.status = SessionStatus.PLANNING.value
         store.save(s)
 
-        s.site_name = "voice_planner"
-        s.plan = make_plan(_llm_or_none(), s.goal)
-        s.workflow = _new_workflow(s.goal)
-        _extract_workflow(s.workflow, s.goal, initial=True)
-        s.say(TurnKind.NARRATION.value, _start_workflow(s.workflow))
-        if s.workflow.get("domain") == "knowledge" and s.workflow.get("result"):
-            s.outcome = _knowledge_receipt(s.workflow)
+        # New conversations are deliberately general: answer the user's actual
+        # question rather than forcing every request into a planning template.
+        s.site_name = "general_conversation"
+        s.workflow = {}
+        s.plan = Plan(intent=s.goal, steps=[], confirm_question="")
+        s.say(TurnKind.NARRATION.value,
+              compose_reply(_llm_or_none(), _history(s), s.plan))
         s.status = SessionStatus.CONVERSING.value
         store.save(s)
     except Exception as exc:  # noqa: BLE001
@@ -147,10 +147,9 @@ def handle_reply(session_id: str, text: str) -> None:
             s.say(TurnKind.OUTCOME.value, closing_line(history))
             s.status = SessionStatus.DONE.value
         else:
-            if s.workflow:
-                _handle_workflow_reply(s, text)
-            else:  # Sessions created by an older Beacon version remain usable.
-                _handle_outing_reply(s, text)
+            s.say(TurnKind.NARRATION.value,
+                  compose_reply(_llm_or_none(), history, s.plan))
+            s.status = SessionStatus.CONVERSING.value
         store.save(s)
     except Exception as exc:  # noqa: BLE001
         _fail(store, session_id, exc)
