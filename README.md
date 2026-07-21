@@ -10,10 +10,30 @@ Beacon is a single Python web service. Its browser dashboard uses the Web Speech
 API for speech input and output, while the backend persists the structured plan,
 selection, confirmation, and final receipt in SQLite.
 
+## Code repository
+
+https://github.com/pavankumarh14/Beacon
+
+## How Codex and GPT-5.6 were used
+
+Codex, powered by GPT-5.6, was used as a development collaborator throughout
+the project. It helped inspect the initial proposal and implementation, map the
+proposal into the voice-to-plan state machine, implement and review the Python,
+browser, Docker, and Render configuration changes, and run focused end-to-end
+checks of planning, confirmation, persistence, and deterministic exit behavior.
+
+It was also used to diagnose provider configuration failures, improve the
+structured LLM-planning prompt and fallback handling, refine the voice UI
+behavior, and update this documentation. Design decisions, API keys, deployment
+configuration, and final product choices remain under developer control; secrets
+are never placed in the repository.
+
 ---
 
 ## Table of contents
 - [Quick start](#quick-start)
+- [Code repository](#code-repository)
+- [How Codex and GPT-56 were used](#how-codex-and-gpt-56-were-used)
 - [Architecture](#architecture)
 - [Voice-to-plan workflow](#voice-to-plan-workflow)
 - [Using a different LLM](#using-a-different-llm)
