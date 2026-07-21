@@ -87,7 +87,7 @@
 </div>
 
 <script>
-let sessionId=null, status=null, spoken=new Set(), speaking=false, ttsQueue=[], speechRun=0, planStage=null, renderedTurnCount=0;
+let sessionId=null, status=null, spoken=new Set(), speaking=false, ttsQueue=[], speechRun=0, planStage=null, renderedTurnCount=0, conversationGeneration=0;
 const synth = window.speechSynthesis;
 const SPOKEN_KINDS = new Set(["narration","confirm","outcome"]);
 
@@ -127,6 +127,7 @@ function newConversation(){
   // Preserve the previous server-side session as an auditable transcript, while
   // making the next typed/spoken message create an entirely new session.
   if(listening && rec) rec.stop();
+  conversationGeneration++;
   stopSpeaking();
   sessionId=null;
   status=null;
@@ -193,8 +194,16 @@ function showLocalUser(text){  // optimistic echo (server also records it)
 }
 
 async function startSession(goal){
+  const generation=++conversationGeneration;
+  stopSpeaking();
+  renderedTurnCount=0;
+  planStage=null;
+  document.getElementById('transcript').innerHTML='';
+  renderPlan({});
   setStatus('Understanding your request…');
   const r=await api('POST','/api/sessions',{goal});
+  // Ignore a delayed create response if the user already started fresh again.
+  if(generation!==conversationGeneration) return;
   sessionId=r.session_id; spoken=new Set();
 }
 async function respond(text){ await api('POST','/api/sessions/'+sessionId+'/respond',{text}); }
@@ -203,7 +212,11 @@ async function respond(text){ await api('POST','/api/sessions/'+sessionId+'/resp
 function terminal(){ return ['done','abandoned','error'].includes(status); }
 async function poll(){
   if(!sessionId) return;
-  const s=await api('GET','/api/sessions/'+sessionId);
+  const requestedSessionId=sessionId;
+  const s=await api('GET','/api/sessions/'+requestedSessionId);
+  // A poll that began before New conversation must never redraw or speak the
+  // old session after the user has moved on.
+  if(sessionId!==requestedSessionId) return;
   if(s.error) return;
   status=s.status;
   document.getElementById('live').textContent =
