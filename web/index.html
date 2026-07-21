@@ -43,6 +43,7 @@
   .step{font-size:13px;border:1px solid var(--line);border-radius:20px;padding:3px 9px;color:var(--muted)}
   .step.active{border-color:var(--accent);color:#dceaff;background:#183358}.step.done{border-color:#2c6e52;color:#b6ead3}
   .facts{display:flex;flex-wrap:wrap;gap:7px}.fact{font-size:13px;background:#101827;border-radius:8px;padding:3px 8px;color:#ced8eb}
+  .starter{font-size:14px;color:var(--muted);margin:10px 0 0}.starter code{color:#dceaff;background:#101827;padding:2px 5px;border-radius:5px}
   .option-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:13px}
   .option{border:1px solid var(--line);border-radius:12px;padding:13px;background:#111a2a}.option.selected{border-color:#6aa6ff}
   .option h3{font-size:16px;margin:0 0 5px}.option p{font-size:14px;line-height:1.35;color:var(--muted);margin:5px 0}.option small{color:#8493ad}
@@ -59,7 +60,12 @@
 
 <div class="wrap">
   <div id="status">Tell Beacon what you want to plan.</div>
-  <div id="planPanel" class="plan-panel"></div>
+  <div id="planPanel" class="plan-panel">
+    <div class="plan-title">Start a plan</div>
+    <div class="progress"><span class="step active">Details</span><span class="step">Options</span><span class="step">Confirm</span><span class="step">Plan saved</span></div>
+    <div class="facts"><span class="fact">Share your first detail to begin</span></div>
+    <p class="starter">Try <code>Plan a weekend trip</code>, <code>Choose a birthday gift</code>, or <code>Prepare for an interview</code>.</p>
+  </div>
   <div id="transcript"></div>
   <div class="hint" id="hint">Beacon adapts its questions, presents demo options, and saves a confirmed plan.
     Voice works in Chrome/Edge; you can also type below.</div>
@@ -240,10 +246,12 @@ function renderPlan(o){
   const fields=Array.isArray(o.fields) ? o.fields.map(field=>[field.key,field.label]) : [['party_size','people'],['location','area'],['time','time'],['cuisine','cuisine'],['dietary_needs','diet'],['budget','budget']];
   const details=o.details||o;
   const facts=fields.filter(([key])=>details[key]).map(([key,label])=>`<span class="fact">${escapeHtml(label)}: ${escapeHtml(String(details[key]))}</span>`).join('');
-  const title=o.domain ? `Your ${escapeHtml(o.domain==='general'?'personal':o.domain)} plan` : 'Your plan';
+  const hasPlan=Boolean(o.domain);
+  const title=hasPlan ? `Your ${escapeHtml(o.domain==='general'?'personal':o.domain)} plan` : 'Start a plan';
   let html='<div class="plan-title">'+title+'</div><div class="progress">';
   steps.forEach((label,index)=>{ const state=index<stageIndex?'done':index===stageIndex?'active':''; html+=`<span class="step ${state}">${label}</span>`; });
   html+='</div><div class="facts">'+(facts||'<span class="fact">Share your first detail to begin</span>')+'</div>';
+  if(!hasPlan) html+='<p class="starter">Try <code>Plan a weekend trip</code>, <code>Choose a birthday gift</code>, or <code>Prepare for an interview</code>.</p>';
   if((stage==='options'||stage==='confirm') && Array.isArray(o.options)){
     html+='<div class="option-grid">';
     o.options.forEach(option=>{
@@ -259,6 +267,7 @@ function renderPlan(o){
 function setStatus(t){ document.getElementById('status').textContent=t; }
 function escapeHtml(s){ return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
+renderPlan({});
 setInterval(poll, 1200);
 </script>
 </body>
