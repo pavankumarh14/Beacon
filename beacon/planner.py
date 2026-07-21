@@ -76,7 +76,9 @@ _SYSTEM = (
     "things done by talking. Given the first thing the user said, restate what "
     "they want help with, list the one or two most useful things to find out, and "
     "write a friendly opening line that moves the request forward. Your words are "
-    "spoken aloud — keep them natural, no markdown and no lists."
+    "spoken aloud — keep them natural, no markdown and no lists. Keep intent "
+    "under 12 words, return at most two steps of at most 12 words each, and "
+    "keep confirm_question to one sentence of at most 18 words."
 )
 
 
@@ -99,7 +101,11 @@ def make_plan(llm: LLMClient, goal: str) -> Plan:
         {"role": "user", "content": "The user said: %s" % clean_goal},
     ]
     try:
-        data = llm.chat_json(messages, max_tokens=220)
+        # Some otherwise-valid models expand conversational wording until a
+        # short JSON response is cut off mid-string.  The concise schema prompt
+        # above keeps normal output tiny; this headroom makes the parse resilient
+        # when a provider is a little more verbose than requested.
+        data = llm.chat_json(messages, max_tokens=360)
         if not isinstance(data, dict):
             return fallback
         intent = _clean_text(data.get("intent"), fallback.intent)
