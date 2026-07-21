@@ -98,6 +98,11 @@ class Session:
     pending_action: Optional[Dict[str, Any]] = None    # Action awaiting confirmation
     action_log: List[str] = field(default_factory=list)
     outcome: Dict[str, str] = field(default_factory=dict)
+    # The structured state for Beacon's voice-to-plan outing flow. Keeping it
+    # beside the transcript makes the final plan reproducible and auditable.
+    outing: Dict[str, Any] = field(default_factory=dict)
+    # Generic, domain-aware plan state used by the voice-to-plan workflow.
+    workflow: Dict[str, Any] = field(default_factory=dict)
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
 

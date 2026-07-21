@@ -22,7 +22,7 @@ An AI-first assistant should feel like talking to a knowledgeable friend, not qu
 
 #### **Proposed Solution** 
 
-Beacon is a voice-first conversational concierge. The user speaks a goal — “book a restaurant for four tonight,” “plan a weekend trip,” “help me pick a birthday gift” — and Beacon responds aloud, asks one focused clarifying question, and keeps the dialogue moving turn by turn until the task is complete. Every exchange is governed by a four-component agent brain: a Planner that decomposes the goal into steps, a Narrator that produces warm spoken replies, a Navigator that decides whether to continue or close, and a lightweight orchestrator that ties them together. The full conversation is persisted to SQLite so the transcript is auditable. The user ends the conversation naturally — by saying “bye” or “stop” — and the closing line is always generated deterministically, never by the LLM, so the user can always leave. 
+Beacon is a voice-to-plan concierge. The user speaks a goal — “plan dinner for four tonight,” “plan a weekend trip,” “help me choose a birthday gift,” or “prepare for a Python interview” — and Beacon identifies the planning domain before collecting only the details that make the plan useful. It presents three clearly labelled demo recommendations, lets the user select one, and requires an explicit “yes” before saving the final plan receipt. Every exchange is persisted to SQLite so the decision is auditable. The user can end naturally — by saying “bye” or “stop” — because exit detection and the closing line are deterministic code, never delegated to the model. 
 
 #### **Expected Impact** 
 
@@ -56,13 +56,13 @@ Beacon is a voice-first conversational concierge. The user speaks a goal — “
 
 #### **Key Features** 
 
-**Goal-Driven Planning.** Beacon decomposes every spoken goal into an intent, a sequence of actionable steps, and an opening question — giving the conversation structure before the first reply. 
+**Domain-Aware Voice-to-Plan Workflow.** Beacon turns dining, travel, gifting, study, and open-ended goals into structured details, three transparent demo options, an explicit selection, and a saved plan receipt — not just a chat response. 
 
 **Spoken-First Narration.** Replies are written for the ear: 1–3 sentences, no markdown, no bullet lists — warm, practical, and spoken-friendly. 
 
 **Deterministic Exit Guard.** Stop words (“bye”, “stop”, “that’s all”) are detected with deterministic keyword matching, never delegated to the LLM. The user can always leave, even if the model is unreachable. 
 
-**Persistent Auditable Transcript.** The full transcript — every user turn, every Beacon reply, every internal action — is written to SQLite so the session is reproducible and auditable. 
+**Persistent, Bounded History.** The full transcript and final plan receipt are written to SQLite, while only the three most recent sessions are retained. 
 
 **Provider-Agnostic LLM Layer.** Switch between OpenAI, Anthropic Claude, Groq, DeepSeek, and Ollama by changing a single environment variable. No code change required. 
 

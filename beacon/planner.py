@@ -90,7 +90,7 @@ def make_plan(llm: LLMClient, goal: str) -> Plan:
             "Happy to help. What is the most important detail you want to start with?"
         ),
     )
-    if not clean_goal:
+    if not clean_goal or llm is None:
         return fallback
 
     messages = [

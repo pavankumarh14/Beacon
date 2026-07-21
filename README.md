@@ -1,46 +1,37 @@
-# Beacon — Voice-First Conversational Concierge (Hackathon Starter Kit)
+# Beacon — Voice-to-Plan Outing Concierge
 
-> **Theme: Voice agents.** Beacon is a warm, voice-first concierge. A user
-> **speaks** about anything they want help with — *"book a restaurant for four
-> tonight"*, *"help me plan a weekend trip"*, *"pick a birthday gift for my dad"* —
-> and Beacon **talks them through it**, turn by turn, until they're done.
+> **Theme: Voice agents.** Beacon turns a spoken goal into a clear, confirmed,
+> and saved plan. It adapts its questions to dinner, travel, gifts, study, or an
+> open-ended personal goal, then produces a final plan receipt.
 
-**Beacon** listens, replies aloud in plain spoken language, asks the one or two
-most useful questions, gives concrete suggestions, and keeps the conversation
-moving. The user stays in control: they can end the conversation at any time with
-a simple *"bye"* or *"stop"*, and the full transcript persists for audit.
+Beacon asks only for details suited to the goal: for example, party size and
+cuisine for dinner, or destination and travel style for a trip. The user chooses
+an option, explicitly confirms it, and can end at any time with *"bye"* or
+*"stop"*. The final plan and transcript persist for audit.
 
-You are given a **working foundation** — a dashboard that does **real speech in
-the browser** (Web Speech API: STT + TTS, free, no install), a provider-agnostic
-LLM client, data models, and a SQLite store. **You build the agent brain: 4 core
-AI-logic files** (see [What YOU build](#what-you-build-4-core-ai-logic-files)).
-Each is a **scaffold with `TODO` markers** sketching a suggested design — you may
-follow it or restructure entirely.
+Beacon is a single Python web service. Its browser dashboard uses the Web Speech
+API for speech input and output, while the backend persists the structured plan,
+selection, confirmation, and final receipt in SQLite.
 
 ---
 
 ## Table of contents
 - [Quick start](#quick-start)
 - [Architecture](#architecture)
-- [Request / data flow](#request--data-flow)
-- [The conversation state machine](#the-conversation-state-machine)
-- [What's PROVIDED (~50%, working)](#whats-provided-50-working)
-- [What YOU build (4 core AI-logic files)](#what-you-build-4-core-ai-logic-files)
-- [Scaffold map](#scaffold-map)
+- [Outing workflow](#outing-workflow)
 - [Using a different LLM](#using-a-different-llm)
 
 ---
 
 ## Quick start
 
-**Requirements:** Python 3.8+ and **no `pip install`** for the core — the
-foundation is standard-library only. Use **Chrome or Edge** for voice (the text
-box works in any browser). A working prototype LLM key is pre-filled in `.env`
-(shared quota — replace it with your own for heavy use; see "Using a different
-LLM").
+**Requirements:** Python 3.8+. Use **Chrome or Edge** for voice; the text box
+works in any browser. An LLM key is optional for the current deterministic
+outing workflow, and can be configured as described below for future
+personalisation.
 
 ```bash
-# 1) Point Beacon at an LLM (or just use the provided .env).
+# Optional: add an LLM key for your chosen provider.
 cp .env.example .env
 
 # 2) Run the server (serves the dashboard + storage API).
@@ -50,9 +41,21 @@ python3 server.py           # -> http://localhost:8002
 Open <http://localhost:8002>, click **Speak**, and just talk to Beacon. Say
 *"bye"* when you're done.
 
-Beacon records the conversation, plans an opening response, continues with the
-full transcript as context, and closes deterministically when the user says
-"bye", "stop", or a similar farewell.
+### Best demo flows
+
+Try any of these: **“Plan dinner for four tonight,” “Plan a weekend trip,” “Help
+me choose a birthday gift,”** or **“Help me prepare for a Python interview.”**
+Answer the short domain-specific questions, choose one of the three option cards,
+and say **“yes”** to save the final plan. The receipt clearly states that it is a
+saved plan, not a live reservation or other external action.
+
+## Voice-to-plan workflow
+
+1. Speak a goal, such as “Plan dinner for four tonight” or “Plan a weekend trip.”
+2. Beacon detects the planning domain and collects its missing details.
+3. It shows three cards marked as **demo options**; it never claims live availability.
+4. Choose an option by voice or button, then say **yes** to save the plan.
+5. Beacon stores a final receipt. The final receipt is a plan, not an external action.
 
 ---
 

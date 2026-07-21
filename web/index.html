@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Beacon — Voice Assistant</title>
+<title>Beacon — Voice-to-Plan Outing Concierge</title>
 <style>
   :root{ --bg:#0e1320; --panel:#171e2e; --line:#2a3450; --txt:#eef3fb;
          --muted:#94a3bd; --accent:#6aa6ff; --you:#1f3a63; --beacon:#16324a;
@@ -37,20 +37,31 @@
   input[type=range]{width:160px}
   .hint{color:var(--muted);font-size:14px;text-align:center;margin-top:30px}
   .stopspk{background:#5a4a6a}
+  .plan-panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin:0 0 18px}
+  .plan-title{font-size:14px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+  .progress{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
+  .step{font-size:13px;border:1px solid var(--line);border-radius:20px;padding:3px 9px;color:var(--muted)}
+  .step.active{border-color:var(--accent);color:#dceaff;background:#183358}.step.done{border-color:#2c6e52;color:#b6ead3}
+  .facts{display:flex;flex-wrap:wrap;gap:7px}.fact{font-size:13px;background:#101827;border-radius:8px;padding:3px 8px;color:#ced8eb}
+  .option-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:13px}
+  .option{border:1px solid var(--line);border-radius:12px;padding:13px;background:#111a2a}.option.selected{border-color:#6aa6ff}
+  .option h3{font-size:16px;margin:0 0 5px}.option p{font-size:14px;line-height:1.35;color:var(--muted);margin:5px 0}.option small{color:#8493ad}
+  .option button{background:#2c6eaa;font-size:14px;padding:8px 11px;margin-top:7px}.option button:disabled{opacity:.55;cursor:default}
   a{color:var(--accent)}
 </style>
 </head>
 <body>
 <header>
   <h1>Beacon</h1>
-  <span class="tag">Voice Assistant — prototype</span>
+  <span class="tag">Voice-to-Plan Outing Concierge</span>
   <span id="live" class="tag" style="margin-left:auto"></span>
 </header>
 
 <div class="wrap">
-  <div id="status">Click Speak and just talk to Beacon about anything. Say “bye” when you’re done.</div>
+  <div id="status">Tell Beacon what you want to plan.</div>
+  <div id="planPanel" class="plan-panel"></div>
   <div id="transcript"></div>
-  <div class="hint" id="hint">Beacon listens, talks back, and keeps the conversation going.
+  <div class="hint" id="hint">Beacon adapts its questions, presents demo options, and saves a confirmed plan.
     Voice works in Chrome/Edge; you can also type below.</div>
 </div>
 
@@ -115,6 +126,7 @@ function newConversation(){
   spoken=new Set();
   document.getElementById('transcript').innerHTML='';
   document.getElementById('live').textContent='';
+  renderPlan({});
   setStatus('Fresh conversation ready. Click Speak or type a new goal.');
   setMic(false);
 }
@@ -154,7 +166,12 @@ function handleSpeech(text){
   if(!sessionId || terminal()){ startSession(text); }
   else { respond(text); }
 }
-function quick(w){ if(!sessionId){return;} showLocalUser(w); respond(w); }
+function chooseOption(id){
+  if(!sessionId || terminal()) return;
+  const text='I choose option '+id;
+  showLocalUser(text);
+  respond(text);
+}
 function sendText(){
   const el=document.getElementById('textIn'); const t=el.value.trim(); if(!t)return; el.value='';
   handleSpeech(t);
@@ -185,6 +202,7 @@ async function poll(){
     (status==='conversing'||status==='awaiting_confirmation'||status==='confirming_intent') ? 'your turn' :
     terminal()? status : '';
   renderServer(s.transcript||[]);
+  renderPlan(s.workflow||s.outing||{});
   setStatusForState();
   setMic(listening);
 }
@@ -209,9 +227,34 @@ function renderServer(turns){
 function setStatusForState(){
   const m={conversing:'Your turn — just speak. Say “bye” when you’re done.',
            planning:'Beacon is thinking…',
+           awaiting_confirmation:'Confirm the plan, or say no to choose another option.',
            done:'Conversation ended. Click Speak to start again.',
            error:'Something went wrong.'};
   if(m[status]) setStatus(m[status]);
+}
+function renderPlan(o){
+  const panel=document.getElementById('planPanel');
+  const stage=o.stage||'details';
+  const stageIndex={details:0,options:1,confirm:2,saved:3}[stage] ?? 0;
+  const steps=['Details','Options','Confirm','Plan saved'];
+  const fields=Array.isArray(o.fields) ? o.fields.map(field=>[field.key,field.label]) : [['party_size','people'],['location','area'],['time','time'],['cuisine','cuisine'],['dietary_needs','diet'],['budget','budget']];
+  const details=o.details||o;
+  const facts=fields.filter(([key])=>details[key]).map(([key,label])=>`<span class="fact">${escapeHtml(label)}: ${escapeHtml(String(details[key]))}</span>`).join('');
+  const title=o.domain ? `Your ${escapeHtml(o.domain==='general'?'personal':o.domain)} plan` : 'Your plan';
+  let html='<div class="plan-title">'+title+'</div><div class="progress">';
+  steps.forEach((label,index)=>{ const state=index<stageIndex?'done':index===stageIndex?'active':''; html+=`<span class="step ${state}">${label}</span>`; });
+  html+='</div><div class="facts">'+(facts||'<span class="fact">Share your first detail to begin</span>')+'</div>';
+  if((stage==='options'||stage==='confirm') && Array.isArray(o.options)){
+    html+='<div class="option-grid">';
+    o.options.forEach(option=>{
+      const selected=Number(o.selected_option)===Number(option.id);
+      const disabled=stage==='confirm'||selected;
+      html+=`<article class="option ${selected?'selected':''}"><h3>Option ${option.id}: ${escapeHtml(option.name)}</h3><p>${escapeHtml(option.summary)}</p><p>Budget: ${escapeHtml(option.price)}</p><small>${escapeHtml(option.note)}</small><br><button ${disabled?'disabled':''} onclick="chooseOption(${Number(option.id)})">${selected?'Selected':'Choose this option'}</button></article>`;
+    });
+    html+='</div>';
+  }
+  if(stage==='saved' && o.selected_option){ html+='<p><strong>Plan saved:</strong> '+escapeHtml(String(o.selected_option))+'. This is a plan receipt, not a reservation.</p>'; }
+  panel.innerHTML=html;
 }
 function setStatus(t){ document.getElementById('status').textContent=t; }
 function escapeHtml(s){ return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
