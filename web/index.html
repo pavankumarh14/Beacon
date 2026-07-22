@@ -86,7 +86,7 @@
 </div>
 
 <script>
-let sessionId=null, status=null, spoken=new Set(), speaking=false, ttsQueue=[], speechRun=0, planStage=null, renderedTurnCount=0, conversationGeneration=0;
+let sessionId=null, status=null, spoken=new Set(), speaking=false, ttsQueue=[], speechRun=0, planStage=null, renderedTurnCount=0, conversationGeneration=0, submitting=false;
 const synth = window.speechSynthesis;
 const SPOKEN_KINDS = new Set(["narration","confirm","outcome"]);
 
@@ -114,12 +114,12 @@ function drainQueue(){
   u.onerror=()=>{ if(run===speechRun) drainQueue(); };
   synth.speak(u);
 }
-function stopSpeaking(){
+function stopSpeaking(showStatus=true){
   speechRun++;
   synth.cancel();
   ttsQueue=[];
   speaking=false;
-  setStatus('Voice output stopped.');
+  if(showStatus) setStatus('Voice output stopped.');
 }
 
 function newConversation(){
@@ -149,12 +149,20 @@ function toggleMic(){
   startListening();
 }
 function startListening(){
-  if(!SR) return;
-  stopSpeaking();           // don't transcribe our own voice
+  if(!SR || listening || submitting) return;
+  stopSpeaking(false);      // don't transcribe our own voice
   rec=new SR(); rec.lang='en-US'; rec.interimResults=false; rec.maxAlternatives=1;
   listening=true; setMic(true);
-  rec.onresult=e=>{ const said=e.results[0][0].transcript; handleSpeech(said); };
-  rec.onerror=()=>{}; rec.onend=()=>{ listening=false; setMic(false); };
+  rec.onresult=e=>{
+    const said=e.results[0][0].transcript;
+    listening=false; setMic(false);
+    handleSpeech(said);
+  };
+  rec.onerror=e=>{
+    listening=false; setMic(false);
+    if(e.error!=='aborted') setStatus('I could not hear that. Tap Answer and try again, or type your reply.');
+  };
+  rec.onend=()=>{ listening=false; setMic(false); };
   rec.start();
 }
 function setMic(on){
@@ -170,10 +178,18 @@ function maybeAutoListen(){
 }
 
 // ---------- routing user input ----------
-function handleSpeech(text){
+async function handleSpeech(text){
+  if(submitting) return;
+  submitting=true;
   showLocalUser(text);
-  if(!sessionId || terminal()){ startSession(text); }
-  else { respond(text); }
+  try {
+    if(!sessionId || terminal()) await startSession(text);
+    else await respond(text);
+  } catch(err) {
+    setStatus('Your reply could not be sent. Please try again.');
+  } finally {
+    submitting=false;
+  }
 }
 function chooseOption(id){
   if(!sessionId || terminal()) return;
@@ -181,9 +197,9 @@ function chooseOption(id){
   showLocalUser(text);
   respond(text);
 }
-function sendText(){
+async function sendText(){
   const el=document.getElementById('textIn'); const t=el.value.trim(); if(!t)return; el.value='';
-  handleSpeech(t);
+  await handleSpeech(t);
 }
 function showLocalUser(text){  // optimistic echo (server also records it)
   const d=document.getElementById('transcript');
@@ -194,7 +210,7 @@ function showLocalUser(text){  // optimistic echo (server also records it)
 
 async function startSession(goal){
   const generation=++conversationGeneration;
-  stopSpeaking();
+  stopSpeaking(false);
   renderedTurnCount=0;
   planStage=null;
   document.getElementById('transcript').innerHTML='';

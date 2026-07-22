@@ -317,9 +317,9 @@ def _handle_workflow_reply(s, text: str) -> None:
         return
     workflow["stage"] = "options"
     workflow["awaiting_field"] = ""
-    workflow["options"] = _workflow_options(workflow)
+    workflow["options"] = _workflow_options(workflow, _llm_or_none())
     s.say(TurnKind.NARRATION.value,
-          "I have three demo options based on your plan. Review the cards and say or tap the option you prefer.")
+          "I have three AI-generated recommendations based on your plan. Review the cards and say or tap the option you prefer.")
     s.status = SessionStatus.CONVERSING.value
 
 
@@ -376,8 +376,8 @@ def _start_workflow(workflow: dict) -> str:
         label = workflow["domain"].replace("general", "personal").title()
         return "Let’s make a clear %s plan. %s" % (label, missing["question"])
     workflow["stage"] = "options"
-    workflow["options"] = _workflow_options(workflow)
-    return "I have three demo options based on your plan. Review the cards and say or tap the option you prefer."
+    workflow["options"] = _workflow_options(workflow, _llm_or_none())
+    return "I have three AI-generated recommendations based on your plan. Review the cards and say or tap the option you prefer."
 
 
 def _start_knowledge(workflow: dict) -> str:
@@ -451,12 +451,15 @@ def _knowledge_receipt(workflow: dict) -> dict:
             "source_url": result.get("source_url", "")}
 
 
-def _workflow_options(workflow: dict):
+def _workflow_options(workflow: dict, llm=None):
     details, domain = workflow["details"], workflow["domain"]
     if domain == "dining":
         live = _live_dining_options(details)
         if live:
             return live
+    generated = _llm_options(llm, domain, details)
+    if generated:
+        return generated
     templates = {
         "dining": [("The Cozy Table", "A relaxed {cuisine} plan near {location}."), ("Garden Plate", "A group-friendly {cuisine} choice in {location}."), ("Evening Social", "A lively {cuisine} outing suited to {dietary_needs}.")],
         "travel": [("Balanced weekend route", "A practical {style} itinerary from {origin} to {destination}."), ("Comfort-first escape", "A slower {dates} trip focused on {style}."), ("Value explorer", "A budget-aware route for {travellers} travellers to {destination}.")],
@@ -468,8 +471,56 @@ def _workflow_options(workflow: dict):
     for field in workflow["fields"]: safe.setdefault(field["key"], "your preferences")
     return [{"id": index + 1, "name": name, "summary": summary.format(**safe),
              "price": safe.get("budget", "No budget set"),
-             "note": "Demo option — details and availability are not verified.", "source": "Beacon demo"}
+             "note": "AI-generated planning suggestion — details and availability are not verified.",
+             "source": "Beacon AI"}
             for index, (name, summary) in enumerate(templates[domain])]
+
+
+def _llm_options(llm, domain: str, details: dict):
+    """Create useful, varied planning suggestions without claiming live facts.
+
+    The LLM is used for recommendation quality, while the deterministic workflow
+    continues to own selection, confirmation, and persistence. A malformed or
+    unavailable provider response simply falls back to transparent templates.
+    """
+    if llm is None:
+        return []
+    prompt = (
+        "You are Beacon, a practical voice-to-plan concierge. Create exactly three "
+        "genuinely different planning recommendations for this domain and these "
+        "details. Do not invent live availability, prices, reservations, addresses, "
+        "or external actions. Return strict JSON only: "
+        '{"options":[{"name":"short name","summary":"one concise practical sentence",'
+        '"price":"budget guidance or Not specified"}]}. Keep every field under 18 words.'
+    )
+    try:
+        data = llm.chat_json([
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": "Domain: %s\nPlan details: %s" %
+             (domain, json.dumps(details, ensure_ascii=False))},
+        ], max_tokens=500)
+        raw = data.get("options", []) if isinstance(data, dict) else []
+        if not isinstance(raw, list) or len(raw) != 3:
+            return []
+        options = []
+        for index, item in enumerate(raw):
+            if not isinstance(item, dict):
+                return []
+            name = " ".join(str(item.get("name", "")).split())[:100]
+            summary = " ".join(str(item.get("summary", "")).split())[:300]
+            price = " ".join(str(item.get("price", "Not specified")).split())[:100]
+            if not name or not summary:
+                return []
+            options.append({
+                "id": index + 1, "name": name, "summary": summary,
+                "price": price or "Not specified",
+                "note": "AI-generated planning suggestion — verify details before acting.",
+                "source": "Beacon AI",
+            })
+        return options
+    except Exception as exc:
+        print("[beacon] option generation fallback: %s" % exc)
+        return []
 
 
 def _live_dining_options(details: dict):
@@ -706,16 +757,26 @@ def _demo_options(outing):
 
 
 def _option_number(text: str):
-    match = re.search(r"\b(?:option\s*)?([123])\b", (text or "").lower())
-    return int(match.group(1)) if match else None
+    # Browser speech recognition normally transcribes "option one" rather than
+    # "option 1". Accept both forms, plus natural short replies such as "two".
+    normalized = " ".join((text or "").lower().replace("-", " ").split())
+    match = re.search(r"\b(?:option\s*)?([123])\b", normalized)
+    if match:
+        return int(match.group(1))
+    words = {"one": 1, "two": 2, "three": 3}
+    for word, number in words.items():
+        if re.search(r"\b(?:option\s+)?%s\b" % word, normalized):
+            return number
+    return None
 
 
 def _is_yes(text: str) -> bool:
-    return bool(re.search(r"\b(?:yes|yeah|yep|confirm|proceed|save it|save plan)\b", text.lower()))
+    return bool(re.search(r"\b(?:yes|yeah|yep|sure|okay|ok|confirm|proceed|"
+                          r"save it|save plan|please do|do it)\b", text.lower()))
 
 
 def _is_no(text: str) -> bool:
-    return bool(re.search(r"\b(?:no|nope|cancel|another)\b", text.lower()))
+    return bool(re.search(r"\b(?:no|nope|cancel|another|not now)\b", text.lower()))
 
 
 def _receipt(outing, option):

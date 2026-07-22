@@ -22,7 +22,7 @@ An AI-first assistant should feel like talking to a knowledgeable friend, not qu
 
 #### **Proposed Solution** 
 
-Beacon is a voice-to-plan concierge. The user speaks a goal — “plan dinner for four tonight,” “plan a weekend trip,” “help me choose a birthday gift,” or “prepare for a Python interview” — and Beacon identifies the planning domain before collecting only the details that make the plan useful. It presents three clearly labelled demo recommendations, lets the user select one, and requires an explicit “yes” before saving the final plan receipt. Every exchange is persisted to SQLite so the decision is auditable. The user can end naturally — by saying “bye” or “stop” — because exit detection and the closing line are deterministic code, never delegated to the model. 
+Beacon is a voice-to-plan concierge. The user speaks a goal — “plan dinner for four tonight,” “plan a weekend trip,” “help me choose a birthday gift,” or “prepare for a Python interview” — and Beacon identifies the planning domain before collecting only the details that make the plan useful. It presents three clearly labelled AI-generated planning recommendations, lets the user select one, and requires an explicit “yes” before saving the final plan receipt. Every exchange is persisted to SQLite so the decision is auditable. The user can end naturally — by saying “bye” or “stop” — because exit detection and the closing line are deterministic code, never delegated to the model. 
 
 #### **Expected Impact** 
 
@@ -56,7 +56,7 @@ Beacon is a voice-to-plan concierge. The user speaks a goal — “plan dinner f
 
 #### **Key Features** 
 
-**Domain-Aware Voice-to-Plan Workflow.** Beacon turns dining, travel, gifting, study, and open-ended goals into structured details, three transparent demo options, an explicit selection, and a saved plan receipt — not just a chat response. 
+**Domain-Aware Voice-to-Plan Workflow.** Beacon turns dining, travel, gifting, study, and open-ended goals into structured details, three transparent AI-generated planning suggestions, an explicit selection, and a saved plan receipt — not just a chat response. 
 
 **Spoken-First Narration.** Replies are written for the ear: 1–3 sentences, no markdown, no bullet lists — warm, practical, and spoken-friendly. 
 

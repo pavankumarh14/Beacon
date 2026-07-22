@@ -62,7 +62,7 @@ Open <http://localhost:8002>, click **Speak**, and just talk to Beacon. Say
 
 Try any of these: **“Plan dinner for four tonight,” “Plan a weekend trip,” “Help
 me choose a birthday gift,”** or **“Help me prepare for a Python interview.”**
-Answer the short domain-specific questions, choose one of the three option cards,
+Answer the short domain-specific questions, choose one of the three AI-generated option cards,
 and say **“yes”** to save the final plan. The receipt clearly states that it is a
 saved plan, not a live reservation or other external action.
 
@@ -75,7 +75,7 @@ the experience faithful to Beacon’s goal-tracking design.
 
 1. Speak a goal, such as “Plan dinner for four tonight” or “Plan a weekend trip.”
 2. Beacon detects the planning domain and collects its missing details.
-3. It shows three cards marked as **demo options**; it never claims live availability.
+3. It shows three **AI-generated planning suggestions**; it never claims live availability.
 4. Choose an option by voice or button, then say **yes** to save the plan.
 5. Beacon displays a final receipt with the chosen approach, plan details, and next steps.
 6. Download the receipt as a PDF to share or keep as the record of the decision.
